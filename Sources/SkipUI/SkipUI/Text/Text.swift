@@ -509,12 +509,12 @@ public enum TextAlignment : Int, Hashable, CaseIterable {
 
 #if SKIP
 struct TextEnvironment: Equatable {
-    var fontWeight: Font.Weight?
-    var fontDesign: Font.Design?
-    var isItalic: Bool?
-    var isUnderline: Bool?
-    var isStrikethrough: Bool?
-    var textCase: Text.Case?
+    let fontWeight: Font.Weight?
+    let fontDesign: Font.Design?
+    let isItalic: Bool?
+    let isUnderline: Bool?
+    let isStrikethrough: Bool?
+    let textCase: Text.Case?
 
     var textDecoration: TextDecoration? {
         if isUnderline == true, isStrikethrough == true {
@@ -526,6 +526,24 @@ struct TextEnvironment: Equatable {
         } else {
             return nil
         }
+    }
+    
+    func copy(
+      fontWeight: Font.Weight? = nil,
+      fontDesign: Font.Design? = nil,
+      isItalic: Bool? = nil,
+      isUnderline: Bool? = nil,
+      isStrikethrough: Bool? = nil,
+      textCase: Text.Case? = nil
+    ) -> TextEnvironment {
+      return TextEnvironment(
+        fontWeight: fontWeight ?? self.fontWeight,
+        fontDesign: fontDesign ?? self.fontDesign,
+        isItalic: isItalic ?? self.isItalic,
+        isUnderline: isUnderline ?? self.isUnderline,
+        isStrikethrough: isStrikethrough ?? self.isStrikethrough,
+        textCase: textCase ?? self.textCase
+      )
     }
 }
 
@@ -585,7 +603,7 @@ extension View {
 
     public func fontDesign(_ design: Font.Design?) -> some View {
         #if SKIP
-        return textEnvironment(for: self) { $0.fontDesign = design }
+        return textEnvironment(for: self) { $0.copy(fontDesign: design) }
         #else
         return self
         #endif
@@ -599,7 +617,7 @@ extension View {
 
     public func fontWeight(_ weight: Font.Weight?) -> some View {
         #if SKIP
-        return textEnvironment(for: self) { $0.fontWeight = weight }
+        return textEnvironment(for: self) { $0.copy(fontWeight: weight) }
         #else
         return self
         #endif
@@ -624,7 +642,7 @@ extension View {
     // SKIP @bridge
     public func italic(_ isActive: Bool = true) -> any View {
         #if SKIP
-        return textEnvironment(for: self) { $0.isItalic = isActive }
+        return textEnvironment(for: self) { $0.copy(isItalic: isActive) }
         #else
         return self
         #endif
@@ -726,7 +744,7 @@ extension View {
 
     public func strikethrough(_ isActive: Bool = true, pattern: Text.LineStyle.Pattern = .solid, color: Color? = nil) -> some View {
         #if SKIP
-        return textEnvironment(for: self) { $0.isStrikethrough = isActive }
+        return textEnvironment(for: self) { $0.copy(isStrikethrough: isActive) }
         #else
         return self
         #endif
@@ -739,7 +757,7 @@ extension View {
 
     public func textCase(_ textCase: Text.Case?) -> any View {
         #if SKIP
-        return textEnvironment(for: self) { $0.textCase = textCase }
+        return textEnvironment(for: self) { $0.copy(textCase: textCase) }
         #else
         return self
         #endif
@@ -772,7 +790,7 @@ extension View {
 
     public func underline(_ isActive: Bool = true, pattern: Text.LineStyle.Pattern = .solid, color: Color? = nil) -> some View {
         #if SKIP
-        return textEnvironment(for: self) { $0.isUnderline = isActive }
+        return textEnvironment(for: self) { $0.copy(isUnderline: isActive) }
         #else
         return self
         #endif

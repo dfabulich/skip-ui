@@ -55,8 +55,7 @@ public struct ToolbarItem : View, CustomizableToolbarContent {
     @Composable public override func ComposeContent(context: ComposeContext) {
         EnvironmentValues.shared.setValues {
             if placement == .confirmationAction {
-                var textEnvironment = $0._textEnvironment
-                textEnvironment.fontWeight = Font.Weight.bold
+                var textEnvironment = $0._textEnvironment.copy(fontWeight: Font.Weight.bold)
                 $0.set_textEnvironment(textEnvironment)
             }
         } in: {

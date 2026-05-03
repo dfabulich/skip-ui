@@ -4,12 +4,13 @@
 import Foundation
 #if SKIP
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -224,7 +225,6 @@ public struct NavigationStack : View, Renderable {
         let context = context.content(stateSaver: state.stateSaver)
 
         let topBarPreferences = arguments.toolbarPreferences.navigationBar
-        let topBarHidden = remember { mutableStateOf(false) }
         let bottomBarPreferences = arguments.toolbarPreferences.bottomBar
         let hasTitle = arguments.title != NavigationTitlePreferenceKey.defaultValue
         let effectiveTitleDisplayMode = navigator.value.titleDisplayMode(for: state, hasTitle: hasTitle, preference: arguments.toolbarPreferences.titleDisplayMode)
@@ -236,6 +236,10 @@ public struct NavigationStack : View, Renderable {
         let toolbarContentReduced = toolbarContent.value.reduced
         let toolbarItems = ToolbarItems(content: toolbarContentReduced.content ?? [])
         let (titleMenu, topLeadingItems, topTrailingItems, bottomItems) = toolbarItems.Evaluate(context: context)
+
+        let showTopBar = topBarPreferences?.visibility != Visibility.hidden
+            && (!arguments.isRoot || hasTitle || topLeadingItems.size > 0 || topTrailingItems.size > 0 || topBarPreferences?.visibility == Visibility.visible)
+        let topBarEverShown = remember { mutableStateOf(false) }
 
         let searchFieldPadding = 16.dp
         let density = LocalDensity.current
@@ -260,11 +264,6 @@ public struct NavigationStack : View, Renderable {
         } else {
             scrollBehavior = initialScrollBehavior
         }
-        var modifier = Modifier.nestedScroll(searchFieldScrollConnection)
-        if !topBarHidden.value {
-            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-        }
-        modifier = modifier.then(context.modifier)
 
         let defaultTopBarHeight = 112.dp
         let topBarBottomPx = remember {
@@ -277,27 +276,40 @@ public struct NavigationStack : View, Renderable {
             mutableStateOf(with(density) { defaultTopBarHeight.toPx() })
         }
 
+        var modifier = Modifier.nestedScroll(searchFieldScrollConnection)
+        let topBarScrollThresholdPx = Float(1.0)
+        if showTopBar || topBarHeightPx.value > topBarScrollThresholdPx {
+            modifier = modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
+        }
+        modifier = modifier.then(context.modifier)
+
         let isSystemBackground = topBarPreferences?.isSystemBackground == true
         let topBar: @Composable () -> Void = {
-            guard topBarPreferences?.visibility != Visibility.hidden else {
-                SideEffect {
-                    topBarHidden.value = true
+            SideEffect {
+                if !showTopBar && !topBarEverShown.value {
                     topBarBottomPx.value = Float(0.0)
                     topBarHeightPx.value = Float(0.0)
                 }
-                return
+                if showTopBar {
+                    topBarEverShown.value = true
+                }
             }
-
-            guard !arguments.isRoot || hasTitle || topLeadingItems.size > 0 || topTrailingItems.size > 0 || topBarPreferences?.visibility == Visibility.visible else {
-                SideEffect {
-                    topBarHidden.value = true
+            LaunchedEffect(showTopBar) {
+                if !showTopBar {
+                    if topBarEverShown.value {
+                        delay((defaultAnimationDuration * 1000.0).toLong())
+                    }
                     topBarBottomPx.value = Float(0.0)
                     topBarHeightPx.value = Float(0.0)
                 }
-                return
             }
-            topBarHidden.value = false
 
+            let animationForBar = Animation.current(isAnimating: false)
+            let barSpec: AnimationSpec<Any> = animationForBar?.asAnimationSpec() ?? Animation.default.asAnimationSpec()
+            let moveEdgeTop = MoveTransition(edge: .top)
+            let topBarEnter = moveEdgeTop.asEnterTransition(spec: barSpec)
+            let topBarExit = moveEdgeTop.asExitTransition(spec: barSpec)
+            AnimatedVisibility(visible: showTopBar, modifier: Modifier.fillMaxWidth(), enter: topBarEnter, exit: topBarExit, label: "NavigationTopBar") {
             let isOverlapped = scrollBehavior.state.overlappedFraction > 0
             let materialColorScheme: androidx.compose.material3.ColorScheme
             if isOverlapped, let customColorScheme = topBarPreferences?.colorScheme?.asMaterialTheme() {
@@ -428,6 +440,7 @@ public struct NavigationStack : View, Renderable {
                     }
                 }
             }
+            }
         }
 
         let bottomBarTopPx = remember { mutableStateOf(Float(0.0)) }
@@ -521,9 +534,9 @@ public struct NavigationStack : View, Renderable {
             }
         }
 
-        // We place nav bars within each entry rather than at the navigation controller level. There isn't a fluid animation
-        // between navigation bar states on Android, and it is simpler to only hoist navigation bar preferences to this level
-        
+        // We place nav bars within each entry rather than at the navigation controller level so toolbar preferences apply per entry.
+        // Top bar visibility uses AnimatedVisibility with MoveTransition for enter/exit.
+
         let layoutImplementationVersion = EnvironmentValues.shared._layoutImplementationVersion
         if layoutImplementationVersion < 2 {
             // Old Column layout (version < 2)

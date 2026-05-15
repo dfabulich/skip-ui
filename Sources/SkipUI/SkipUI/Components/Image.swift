@@ -145,21 +145,14 @@ public struct Image : View, Renderable, Equatable {
     @Composable private func RenderAssetImage(asset: AssetImageInfo, label: Text?, aspectRatio: Double?, contentMode: ContentMode?, context: ComposeContext) {
         let url = asset.url
         let androidContext = LocalContext.current
-        let dm = androidContext.resources.displayMetrics
-        let maxPx = max(Int(dm.widthPixels), Int(dm.heightPixels))
-        let cacheKey = "\(url.description)#\(maxPx)x\(maxPx)"
-        let model = remember(asset.url, maxPx) {
-            // Coil refuses to use its memory cache for .size(Size.ORIGINAL) requests!
-            // We're using maxPx as an arbitrary bound to force it to cache properly
-            // Coil memory-cache size validation is in MemoryCacheService.isCacheValueValidForSize:
-            // See compose-source/io-coil-kt-coil3/coil-core-android/commonMain/coil3/memory/MemoryCacheService.kt:127.
+        let cacheKey = url.description
+        let model = remember(asset.url) {
             return ImageRequest.Builder(androidContext)
                 .fetcherFactory(AssetURLFetcher.Factory()) // handler for asset:/ and jar:file:/ URLs
                 .decoderFactory(coil3.svg.SvgDecoder.Factory())
                 //.decoderFactory(coil3.gif.GifDecoder.Factory())
                 .decoderFactory(PdfDecoder.Factory())
                 .data(asset.url)
-                .size(coil3.size.Size(width: maxPx, height: maxPx))
                 .memoryCacheKey(cacheKey)
                 .diskCacheKey(cacheKey)
                 .build()

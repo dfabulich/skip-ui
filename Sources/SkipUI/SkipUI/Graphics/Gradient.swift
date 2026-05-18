@@ -141,7 +141,9 @@ public struct LinearGradient : ShapeStyle, Renderable {
 
     @Composable override func asBrush(opacity: Double, animationContext: ComposeContext?) -> Brush? {
         let stops = gradient.colorStops(opacity: opacity)
-        return LinearGradientShaderBrush(colorStops: stops, startPoint: startPoint, endPoint: endPoint)
+        return remember(gradient, startPoint, endPoint, opacity) {
+            LinearGradientShaderBrush(colorStops: stops, startPoint: startPoint, endPoint: endPoint)
+        }
     }
 
     private struct LinearGradientShaderBrush: ShaderBrush {
